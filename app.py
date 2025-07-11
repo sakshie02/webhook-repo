@@ -1,4 +1,9 @@
-# Replace MongoDB code with simple list storage
+from flask import Flask, request, jsonify, render_template
+from datetime import datetime
+
+app = Flask(__name__)
+
+# Simple in-memory storage instead of MongoDB
 events_storage = []
 
 @app.route('/webhook', methods=['POST'])
@@ -25,11 +30,36 @@ def handle_push_event(payload):
         'author': author,
         'action': 'PUSH',
         'to_branch': branch,
+        'from_branch': branch,
         'timestamp': timestamp.isoformat()
     }
     
     events_storage.append(event_data)
 
+def handle_pull_request_event(payload):
+    if payload['action'] == 'opened':
+        author = payload['pull_request']['user']['login']
+        from_branch = payload['pull_request']['head']['ref']
+        to_branch = payload['pull_request']['base']['ref']
+        timestamp = datetime.utcnow()
+        
+        event_data = {
+            'author': author,
+            'action': 'PULL_REQUEST',
+            'from_branch': from_branch,
+            'to_branch': to_branch,
+            'timestamp': timestamp.isoformat()
+        }
+        
+        events_storage.append(event_data)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/api/events')
 def get_events():
-    return jsonify(events_storage[-20:])  # Last 20 events
+    return jsonify(events_storage[-20:])
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
