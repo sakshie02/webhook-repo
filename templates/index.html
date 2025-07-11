@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Webhook Events</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .event {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .event.push {
+            border-left-color: #28a745;
+        }
+        .event.pull_request {
+            border-left-color: #ffc107;
+        }
+        .event.merge {
+            border-left-color: #dc3545;
+        }
+        .status {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        .last-updated {
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>GitHub Repository Events</h1>
+        <div class="status" id="status">Loading events...</div>
+        <div id="events-container"></div>
+        <div class="last-updated" id="last-updated"></div>
+    </div>
+
+    <script>
+        function fetchEvents() {
+            fetch('/api/events')
+                .then(response => response.json())
+                .then(events => {
+                    const container = document.getElementById('events-container');
+                    const status = document.getElementById('status');
+                    const lastUpdated = document.getElementById('last-updated');
+                    
+                    if (events.length === 0) {
+                        status.textContent = 'No events yet. Push to your repository to see events here!';
+                        container.innerHTML = '';
+                    } else {
+                        status.textContent = '';
+                        container.innerHTML = events.map(event => {
+                            let message = '';
+                            if (event.action === 'PUSH') {
+                                message = `"${event.author}" pushed to "${event.to_branch}" on ${new Date(event.timestamp).toLocaleString()}`;
+                            } else if (event.action === 'PULL_REQUEST') {
+                                message = `"${event.author}" submitted a pull request from "${event.from_branch}" to "${event.to_branch}" on ${new Date(event.timestamp).toLocaleString()}`;
+                            } else if (event.action === 'MERGE') {
+                                message = `"${event.author}" merged branch "${event.from_branch}" to "${event.to_branch}" on ${new Date(event.timestamp).toLocaleString()}`;
+                            }
+                            return `
+                                <div class="event ${event.action.toLowerCase()}">
+                                    <strong>${event.action}:</strong> ${message}
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                    
+                    lastUpdated.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                })
+                .catch(error => {
+                    console.error('Error fetching events:', error);
+                    document.getElementById('status').textContent = 'Error loading events';
+                });
+        }
+
+        // Fetch events immediately
+        fetchEvents();
+        
+        // Poll every 15 seconds
+        setInterval(fetchEvents, 15000);
+    </script>
+</body>
+</html>
